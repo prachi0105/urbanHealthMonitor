@@ -1,0 +1,2191 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urban Health Monitor - NASA Space Apps 2025</title>
+    
+    <!-- External Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Complete CSS Styling */
+        :root {
+            --primary-blue: #2563eb;
+            --primary-green: #059669;
+            --primary-red: #dc2626;
+            --primary-orange: #ea580c;
+            --primary-purple: #7c3aed;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-600: #4b5563;
+            --gray-800: #1f2937;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            background-color: var(--gray-50);
+            color: var(--gray-800);
+        }
+
+        /* Navigation */
+        .nav-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        /* Views */
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* Cards */
+        .city-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .city-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-blue);
+        }
+
+        .stat-card, .metric-card, .analysis-card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover, .metric-card:hover, .analysis-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Status indicators */
+        .city-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .status-good { background-color: #10b981; }
+        .status-moderate { background-color: #f59e0b; }
+        .status-unhealthy { background-color: #ef4444; }
+        .status-loading { 
+            background-color: #6b7280; 
+            animation: pulse 2s infinite;
+        }
+
+        /* AQI Colors */
+        .aqi-good { color: #10b981; background-color: #d1fae5; }
+        .aqi-moderate { color: #d97706; background-color: #fef3c7; }
+        .aqi-unhealthy-sensitive { color: #ea580c; background-color: #fed7aa; }
+        .aqi-unhealthy { color: #dc2626; background-color: #fecaca; }
+        .aqi-very-unhealthy { color: #7c3aed; background-color: #e9d5ff; }
+        .aqi-hazardous { color: #7c2d12; background-color: #fed7d7; }
+
+        /* Gauge */
+        .gauge-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 2rem 0;
+        }
+
+        .gauge {
+            position: relative;
+            width: 150px;
+            height: 75px;
+            border-radius: 150px 150px 0 0;
+            background: linear-gradient(90deg, #10b981 0%, #f59e0b 33%, #f97316 66%, #ef4444 100%);
+            overflow: hidden;
+        }
+
+        .gauge::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 130px;
+            height: 65px;
+            background: white;
+            border-radius: 130px 130px 0 0;
+        }
+
+        .gauge-needle {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform-origin: bottom center;
+            width: 2px;
+            height: 60px;
+            background: #374151;
+            transform: translateX(-50%) rotate(0deg);
+            transition: transform 0.5s ease;
+            z-index: 10;
+        }
+
+        .gauge-needle::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 8px;
+            background: #374151;
+            border-radius: 50%;
+        }
+
+        /* Risk bars */
+        .risk-item { margin-bottom: 1rem; }
+        
+        .risk-bar {
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .risk-fill {
+            height: 100%;
+            transition: width 0.8s ease;
+            border-radius: 4px;
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Alert banner */
+        .alert-banner {
+            padding: 1rem 0;
+            transition: all 0.3s ease;
+        }
+        .alert-banner.warning {
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+            color: #92400e;
+        }
+        .alert-banner.danger {
+            background: linear-gradient(90deg, #f87171, #ef4444);
+            color: white;
+        }
+
+        /* Pollutant items */
+        .pollutant-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .pollutant-item:hover {
+            background: var(--gray-100);
+            transform: translateX(4px);
+        }
+
+        /* Recommendations */
+        .recommendation-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 1rem;
+            background: #eff6ff;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--primary-blue);
+            margin-bottom: 1rem;
+        }
+
+        .recommendation-icon {
+            flex-shrink: 0;
+            color: var(--primary-blue);
+            margin-right: 0.75rem;
+            margin-top: 0.125rem;
+        }
+
+        /* Toast notifications */
+        .toast {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Utility classes */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .cursor-pointer { cursor: pointer; }
+
+        /* Comparison styles */
+        .city-checkbox {
+            transition: all 0.3s ease;
+        }
+        .city-checkbox.selected {
+            background: #eff6ff !important;
+            border-color: #2563eb !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding-left: 1rem; padding-right: 1rem; }
+            .nav-btn { padding: 0.5rem 1rem; font-size: 0.8rem; }
+            .text-6xl { font-size: 3rem; }
+            .text-5xl { font-size: 2.5rem; }
+            .text-4xl { font-size: 2rem; }
+            .gauge { width: 120px; height: 60px; }
+            .gauge::after { width: 100px; height: 50px; }
+            .gauge-needle { height: 45px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-800 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-globe-americas text-2xl text-blue-300"></i>
+                        <h1 class="text-xl font-bold">Urban Health Monitor</h1>
+                    </div>
+                    <span class="bg-blue-700 px-3 py-1 rounded-full text-sm font-medium">NASA Space Apps 2025</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="home-btn" class="nav-btn active" onclick="showView('home')">
+                        <i class="fas fa-home mr-2"></i>Dashboard
+                    </button>
+                    <button id="compare-btn" class="nav-btn" onclick="showView('compare')">
+                        <i class="fas fa-chart-bar mr-2"></i>Compare Cities
+                    </button>
+                    <button id="about-btn" class="nav-btn" onclick="showView('about')">
+                        <i class="fas fa-info-circle mr-2"></i>About
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <!-- Home View -->
+        <div id="home-view" class="view active">
+            <!-- Hero Section -->
+           <!-- Hero Section - FIXED VERSION -->
+<section class="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 text-white py-20">
+    <div class="container mx-auto px-4 text-center">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-6xl font-bold mb-6 leading-tight">
+                Global Urban <span class="text-yellow-300">Health</span> Monitoring
+            </h1>
+            <p class="text-xl mb-8 leading-relaxed opacity-90">
+                Monitor air quality, green spaces, and health indicators in major cities worldwide using
+                <strong>NASA satellite data</strong>, <strong>ESA Copernicus</strong> observations, and ground-based measurements.
+            </p>
+            <div class="flex justify-center flex-wrap gap-6">
+                <div class="hero-stat-card">
+                    <div class="text-4xl font-bold mb-2" id="total-cities">10</div>
+                    <div class="text-sm font-medium">Cities Monitored</div>
+                </div>
+                <div class="hero-stat-card">
+                    <div class="text-4xl font-bold mb-2" id="data-sources">5</div>
+                    <div class="text-sm font-medium">Data Sources</div>
+                </div>
+                <div class="hero-stat-card">
+                    <div class="text-4xl font-bold mb-2 text-green-300" id="last-update">Live</div>
+                    <div class="text-sm font-medium">Real-time Status</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+            <!-- Global Stats -->
+            <section class="container mx-auto px-4 py-12 -mt-10 relative z-10">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="stat-card bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500 transform hover:scale-105 transition-all duration-300">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-green-500 p-3 rounded-full">
+                                    <i class="fas fa-leaf text-white text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-600">Good Air Quality</div>
+                                    <div class="text-3xl font-bold text-green-600" id="good-cities">-</div>
+                                    <div class="text-xs text-gray-500">Cities</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-gradient-to-br from-yellow-50 to-yellow-100 border-l-4 border-yellow-500 transform hover:scale-105 transition-all duration-300">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-yellow-500 p-3 rounded-full">
+                                    <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-600">Moderate AQI</div>
+                                    <div class="text-3xl font-bold text-yellow-600" id="moderate-cities">-</div>
+                                    <div class="text-xs text-gray-500">Cities</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-500 transform hover:scale-105 transition-all duration-300">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-red-500 p-3 rounded-full">
+                                    <i class="fas fa-exclamation-circle text-white text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-600">Unhealthy AQI</div>
+                                    <div class="text-3xl font-bold text-red-600" id="unhealthy-cities">-</div>
+                                    <div class="text-xs text-gray-500">Cities</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500 transform hover:scale-105 transition-all duration-300">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-blue-500 p-3 rounded-full">
+                                    <i class="fas fa-satellite text-white text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-600">Satellite Updates</div>
+                                    <div class="text-3xl font-bold text-blue-600">24/7</div>
+                                    <div class="text-xs text-gray-500">Real-time</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- City Selection Grid -->
+            <section class="container mx-auto px-4 py-8">
+                <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-city mr-3 text-blue-600"></i>
+                            Select a City to Monitor
+                        </h2>
+                        <p class="text-gray-600">Click on any city to view detailed air quality and health indicators</p>
+                    </div>
+                    <div id="city-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <!-- Cities will be loaded here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Global Map -->
+            <section class="container mx-auto px-4 py-8">
+                <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                    <div class="text-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-map mr-3 text-green-600"></i>
+                            Global Air Quality Map
+                        </h2>
+                        <p class="text-gray-600">Interactive map showing real-time air quality indicators for monitored cities</p>
+                    </div>
+                    <div id="global-map" class="h-96 rounded-xl border border-gray-200"></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- City Details View -->
+        <div id="city-view" class="view">
+            <!-- City Header -->
+            <section class="bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 text-white py-16">
+                <div class="container mx-auto px-4">
+                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                        <div class="flex-1">
+                            <button id="back-to-home" class="mb-4 bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition-all duration-300 backdrop-blur-sm" onclick="showView('home')">
+                                <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                            </button>
+                            <h1 id="city-name" class="text-5xl font-bold mb-4">Loading...</h1>
+                            <p id="city-info" class="text-xl opacity-90">Loading city information...</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button id="refresh-city-data" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-6 py-3 rounded-lg transition-all duration-300 backdrop-blur-sm" onclick="refreshCityData()">
+                                <i class="fas fa-sync-alt mr-2"></i>Refresh Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Alert Banner -->
+            <div id="alert-banner" class="alert-banner hidden">
+                <div class="container mx-auto px-4 py-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-3 text-2xl"></i>
+                            <div>
+                                <strong class="font-semibold">Health Alert:</strong> 
+                                <span id="alert-message" class="ml-2">Loading...</span>
+                            </div>
+                        </div>
+                        <button id="close-alert" class="text-2xl hover:opacity-75 transition-opacity" onclick="hideAlert()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Metrics -->
+            <section class="container mx-auto px-4 py-12">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                    <!-- Air Quality Card -->
+                    <div class="metric-card bg-white rounded-2xl shadow-xl border border-gray-100">
+                        <div class="p-6 border-b border-gray-100">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xl font-bold text-gray-800">Air Quality Index</h3>
+                                <div class="bg-blue-100 p-2 rounded-full">
+                                    <i class="fas fa-wind text-blue-600 text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6 text-center">
+                            <div id="aqi-value" class="text-6xl font-bold mb-4 text-gray-800 transition-all duration-500">--</div>
+                            <div id="aqi-category" class="text-lg font-semibold mb-6 px-4 py-2 rounded-full inline-block border">Loading...</div>
+                            <div id="aqi-gauge" class="gauge-container mb-6">
+                                <div class="gauge">
+                                    <div id="aqi-needle" class="gauge-needle"></div>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-500" id="aqi-updated">Last updated: --</div>
+                        </div>
+                    </div>
+
+                    <!-- Health Risk Card -->
+                    <div class="metric-card bg-white rounded-2xl shadow-xl border border-gray-100">
+                        <div class="p-6 border-b border-gray-100">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xl font-bold text-gray-800">Health Risk Assessment</h3>
+                                <div class="bg-red-100 p-2 rounded-full">
+                                    <i class="fas fa-heartbeat text-red-600 text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-6">
+                                <div class="risk-item">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="font-medium text-gray-700">Respiratory Risk</label>
+                                        <span id="respiratory-value" class="font-bold text-gray-800">0%</span>
+                                    </div>
+                                    <div class="risk-bar">
+                                        <div id="respiratory-bar" class="risk-fill bg-gradient-to-r from-red-400 to-red-600" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="risk-item">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="font-medium text-gray-700">Cardiovascular Risk</label>
+                                        <span id="cardio-value" class="font-bold text-gray-800">0%</span>
+                                    </div>
+                                    <div class="risk-bar">
+                                        <div id="cardio-bar" class="risk-fill bg-gradient-to-r from-orange-400 to-orange-600" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="risk-item">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="font-medium text-gray-700">Overall Health Score</label>
+                                        <span id="health-value" class="font-bold text-gray-800">0%</span>
+                                    </div>
+                                    <div class="risk-bar">
+                                        <div id="health-bar" class="risk-fill bg-gradient-to-r from-green-400 to-green-600" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Green Coverage Card -->
+                    <div class="metric-card bg-white rounded-2xl shadow-xl border border-gray-100">
+                        <div class="p-6 border-b border-gray-100">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xl font-bold text-gray-800">Green Space Coverage</h3>
+                                <div class="bg-green-100 p-2 rounded-full">
+                                    <i class="fas fa-tree text-green-600 text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6 text-center">
+                            <div id="green-coverage" class="text-5xl font-bold text-green-600 mb-4">--%</div>
+                            <div class="text-sm text-gray-600 mb-6">
+                                NDVI Index: <span id="ndvi-value" class="font-semibold">--</span>
+                            </div>
+                            <div class="vegetation-chart mb-4 flex justify-center">
+                                <div class="w-24 h-24 rounded-full bg-gradient-to-r from-green-400 to-green-600 flex items-center justify-center text-white font-bold">
+                                    <span id="green-percentage">--%</span>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+                                <i class="fas fa-satellite mr-1"></i>
+                                Source: NASA MODIS Satellite
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Detailed Analysis -->
+            <section class="container mx-auto px-4 py-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <!-- Pollutant Breakdown -->
+                    <div class="analysis-card bg-white rounded-2xl shadow-xl border border-gray-100">
+                        <div class="p-6 border-b border-gray-100">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xl font-bold text-gray-800">Pollutant Concentrations</h3>
+                                <div class="bg-purple-100 p-2 rounded-full">
+                                    <i class="fas fa-microscope text-purple-600 text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div id="pollutant-list" class="space-y-4">
+                                <div class="animate-pulse space-y-3">
+                                    <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trends Chart -->
+                    <div class="analysis-card bg-white rounded-2xl shadow-xl border border-gray-100">
+                        <div class="p-6 border-b border-gray-100">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xl font-bold text-gray-800">Air Quality Trends (7 Days)</h3>
+                                <div class="bg-indigo-100 p-2 rounded-full">
+                                    <i class="fas fa-chart-line text-indigo-600 text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div id="trends-chart" class="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                                <div class="text-center text-gray-500">
+                                    <i class="fas fa-chart-line text-3xl mb-2"></i>
+                                    <p>Trend analysis available</p>
+                                    <div class="mt-4 text-sm">
+                                        <div class="flex justify-between mb-2">
+                                            <span>7 days ago:</span>
+                                            <span id="trend-7">Loading...</span>
+                                        </div>
+                                        <div class="flex justify-between mb-2">
+                                            <span>3 days ago:</span>
+                                            <span id="trend-3">Loading...</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span>Today:</span>
+                                            <span id="trend-today">Loading...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recommendations -->
+            <section class="container mx-auto px-4 py-8">
+                <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+                    <div class="flex items-center mb-6">
+                        <div class="bg-blue-100 p-3 rounded-full mr-4">
+                            <i class="fas fa-user-md text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800">Health Recommendations</h3>
+                            <p class="text-gray-600">Personalized advice based on current air quality conditions</p>
+                        </div>
+                    </div>
+                    <div id="recommendations" class="space-y-4">
+                        <!-- Recommendations will be loaded here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- City Map -->
+            <section class="container mx-auto px-4 py-8">
+                <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                    <div class="flex items-center mb-6">
+                        <div class="bg-green-100 p-3 rounded-full mr-4">
+                            <i class="fas fa-map-marked-alt text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800">City Air Quality Map</h3>
+                            <p class="text-gray-600">Detailed view of air quality monitoring stations</p>
+                        </div>
+                    </div>
+                    <div id="city-map" class="h-96 rounded-xl border border-gray-200"></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Compare View -->
+        <div id="compare-view" class="view">
+            <section class="container mx-auto px-4 py-12">
+                <div class="text-center mb-12">
+                    <h1 class="text-4xl font-bold text-gray-800 mb-4">Compare Cities</h1>
+                    <p class="text-xl text-gray-600">Compare air quality, health indicators, and environmental data across multiple cities</p>
+                </div>
+                
+                <!-- City Selection for Comparison -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+                    <h3 class="text-2xl font-bold mb-6 text-gray-800">Select Cities to Compare</h3>
+                    <p class="text-gray-600 mb-6">Choose 2-4 cities to compare their environmental and health indicators</p>
+                    <div id="compare-selection" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+                        <!-- City checkboxes will be loaded here -->
+                    </div>
+                    <div class="text-center">
+                        <button id="compare-btn-action" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-300 font-semibold text-lg shadow-lg" disabled onclick="performComparison()">
+                            <i class="fas fa-chart-bar mr-2"></i>
+                            Select 2-4 cities to compare
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Comparison Results -->
+                <div id="comparison-results" class="hidden">
+                    <!-- Results will be loaded here -->
+                </div>
+            </section>
+        </div>
+
+        <!-- About View -->
+        <div id="about-view" class="view">
+            <section class="container mx-auto px-4 py-12">
+                <div class="max-w-6xl mx-auto">
+                    <div class="text-center mb-12">
+                        <h1 class="text-5xl font-bold text-gray-800 mb-6">About Urban Health Monitor</h1>
+                        <p class="text-xl text-gray-600">Empowering cities with data-driven environmental health insights</p>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-xl p-10 mb-8 border border-gray-100">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                            <div>
+                                <h2 class="text-3xl font-bold mb-6 text-blue-600">NASA Space Apps Challenge 2025</h2>
+                                <p class="text-gray-700 mb-6 leading-relaxed">
+                                    This innovative project addresses the <strong>"Data Pathways to Healthy Cities and Human Settlements"</strong> 
+                                    challenge by creating a comprehensive urban health monitoring system that integrates cutting-edge satellite observations, 
+                                    real-time ground-based measurements, and advanced health indicators.
+                                </p>
+                                <p class="text-gray-700 mb-6 leading-relaxed">
+                                    Our platform empowers urban planners, health officials, policymakers, and citizens with actionable insights 
+                                    to create healthier, more sustainable urban environments for current and future generations.
+                                </p>
+                                <div class="flex gap-4">
+                                    <span class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-semibold">Smart India Hackathon</span>
+                                    <span class="bg-green-100 text-green-800 px-4 py-2 rounded-full font-semibold">Open Source</span>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <div class="inline-block p-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl">
+                                    <i class="fas fa-satellite text-6xl text-blue-600 mb-4"></i>
+                                    <h3 class="text-xl font-bold text-gray-800">Real-time Monitoring</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feature Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                        <div class="text-center bg-white rounded-2xl p-8 shadow-xl border border-gray-100">
+                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <i class="fas fa-satellite text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-4 text-gray-800">Satellite Data</h3>
+                            <p class="text-gray-600 leading-relaxed">
+                                NASA MODIS, ESA Sentinel-5P, and Copernicus data for comprehensive 
+                                vegetation and atmospheric monitoring with unprecedented accuracy.
+                            </p>
+                        </div>
+                        <div class="text-center bg-white rounded-2xl p-8 shadow-xl border border-gray-100">
+                            <div class="bg-gradient-to-br from-green-500 to-green-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <i class="fas fa-wind text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-4 text-gray-800">Air Quality</h3>
+                            <p class="text-gray-600 leading-relaxed">
+                                Real-time air quality measurements from 18,000+ OpenAQ monitoring stations 
+                                and ground-based sensors worldwide.
+                            </p>
+                        </div>
+                        <div class="text-center bg-white rounded-2xl p-8 shadow-xl border border-gray-100">
+                            <div class="bg-gradient-to-br from-red-500 to-red-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <i class="fas fa-heart text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-4 text-gray-800">Health Assessment</h3>
+                            <p class="text-gray-600 leading-relaxed">
+                                Evidence-based health risk calculations, predictive analytics, 
+                                and personalized recommendations for different population groups.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Technical Implementation -->
+                    <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-10">
+                        <h3 class="text-3xl font-bold mb-8 text-gray-800 text-center">Technical Implementation</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div class="text-center">
+                                <div class="bg-white p-4 rounded-xl shadow-md mb-4">
+                                    <i class="fab fa-html5 text-3xl text-orange-600"></i>
+                                </div>
+                                <h4 class="font-bold text-gray-800">Frontend</h4>
+                                <p class="text-sm text-gray-600">HTML5, CSS3, JavaScript ES6+</p>
+                            </div>
+                            <div class="text-center">
+                                <div class="bg-white p-4 rounded-xl shadow-md mb-4">
+                                    <i class="fas fa-chart-line text-3xl text-blue-600"></i>
+                                </div>
+                                <h4 class="font-bold text-gray-800">Visualization</h4>
+                                <p class="text-sm text-gray-600">Chart.js, Leaflet.js</p>
+                            </div>
+                            <div class="text-center">
+                                <div class="bg-white p-4 rounded-xl shadow-md mb-4">
+                                    <i class="fas fa-mobile-alt text-3xl text-green-600"></i>
+                                </div>
+                                <h4 class="font-bold text-gray-800">Design</h4>
+                                <p class="text-sm text-gray-600">Tailwind CSS, Responsive UI</p>
+                            </div>
+                            <div class="text-center">
+                                <div class="bg-white p-4 rounded-xl shadow-md mb-4">
+                                    <i class="fas fa-server text-3xl text-purple-600"></i>
+                                </div>
+                                <h4 class="font-bold text-gray-800">APIs</h4>
+                                <p class="text-sm text-gray-600">RESTful integration</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-10 text-center">
+                            <div class="bg-white rounded-xl p-8 shadow-lg inline-block">
+                                <h4 class="text-xl font-bold text-gray-800 mb-4">🏆 Smart India Hackathon 2025</h4>
+                                <p class="text-gray-600 max-w-md">
+                                    Developed for sustainable urban development and public health improvement through innovative data-driven insights.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="text-center">
+            <div class="loading-spinner mb-4"></div>
+            <p class="text-white text-lg font-medium">Loading city data...</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+
+    <script>
+        // Complete JavaScript Application - All functionality in one place
+        
+        // Global variables and configuration
+        let currentView = 'home';
+        let currentCity = null;
+        let cityData = new Map();
+        let selectedComparisonCities = new Set();
+        let maps = {};
+        let charts = {};
+        
+        const cities = ['Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'New York', 'Los Angeles', 'London', 'Paris', 'Tokyo'];
+        
+        const cityCoordinates = {
+            'Delhi': [28.6139, 77.2090],
+            'Mumbai': [19.0760, 72.8777],
+            'Bangalore': [12.9716, 77.5946],
+            'Chennai': [13.0827, 80.2707],
+            'Kolkata': [22.5726, 88.3639],
+            'New York': [40.7128, -74.0060],
+            'Los Angeles': [34.0522, -118.2437],
+            'London': [51.5074, -0.1278],
+            'Paris': [48.8566, 2.3522],
+            'Tokyo': [35.6762, 139.6503]
+        };
+
+        // Utility Functions
+        function formatTime(date) {
+            if (!date) return '--';
+            const now = new Date();
+            const diff = now - new Date(date);
+            const minutes = Math.floor(diff / (1000 * 60));
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+            if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            if (minutes > 0) return `${minutes} min ago`;
+            return 'Just now';
+        }
+
+        function showToast(message, type = 'info', duration = 5000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const iconMap = {
+                'success': 'fas fa-check-circle text-green-600',
+                'error': 'fas fa-exclamation-circle text-red-600',
+                'warning': 'fas fa-exclamation-triangle text-yellow-600',
+                'info': 'fas fa-info-circle text-blue-600'
+            };
+            
+            toast.className = `toast border-l-4 border-${type === 'success' ? 'green' : type === 'error' ? 'red' : type === 'warning' ? 'yellow' : 'blue'}-500`;
+            toast.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="${iconMap[type] || iconMap.info} mr-2"></i>
+                        <span>${message}</span>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) toast.remove();
+            }, duration);
+        }
+
+        function getAQIColorClass(aqi) {
+            if (aqi <= 50) return 'aqi-good';
+            if (aqi <= 100) return 'aqi-moderate';
+            if (aqi <= 150) return 'aqi-unhealthy-sensitive';
+            if (aqi <= 200) return 'aqi-unhealthy';
+            if (aqi <= 300) return 'aqi-very-unhealthy';
+            return 'aqi-hazardous';
+        }
+
+        function getStatusClass(aqi) {
+            if (aqi <= 50) return 'status-good';
+            if (aqi <= 100) return 'status-moderate';
+            return 'status-unhealthy';
+        }
+
+        function getMarkerColor(aqi) {
+            if (aqi <= 50) return '#10b981';
+            if (aqi <= 100) return '#f59e0b';
+            if (aqi <= 150) return '#f97316';
+            if (aqi <= 200) return '#ef4444';
+            if (aqi <= 300) return '#8b5cf6';
+            return '#7c2d12';
+        }
+
+        // Data Generation Functions
+        function generateMockData(cityName) {
+            const cityPollution = {
+                'Delhi': { pm25: [45, 120], pm10: [80, 200], no2: [30, 80] },
+                'Mumbai': { pm25: [35, 90], pm10: [60, 150], no2: [25, 70] },
+                'Bangalore': { pm25: [25, 70], pm10: [40, 120], no2: [20, 60] },
+                'Chennai': { pm25: [30, 85], pm10: [50, 140], no2: [22, 65] },
+                'Kolkata': { pm25: [40, 110], pm10: [70, 180], no2: [28, 75] },
+                'New York': { pm25: [8, 35], pm10: [15, 50], no2: [15, 45] },
+                'Los Angeles': { pm25: [12, 45], pm10: [20, 60], no2: [20, 55] },
+                'London': { pm25: [10, 40], pm10: [18, 55], no2: [18, 50] },
+                'Paris': { pm25: [12, 42], pm10: [20, 58], no2: [22, 52] },
+                'Tokyo': { pm25: [8, 32], pm10: [15, 48], no2: [16, 48] }
+            };
+
+            const levels = cityPollution[cityName] || { pm25: [15, 50], pm10: [25, 80], no2: [18, 55] };
+            
+            // Add time-based variation for realism
+            const hour = new Date().getHours();
+            const isRushHour = (hour >= 7 && hour <= 10) || (hour >= 17 && hour <= 20);
+            const multiplier = isRushHour ? 1.3 : 1.0;
+            
+            const pm25 = Math.round((Math.random() * (levels.pm25[1] - levels.pm25[0]) + levels.pm25[0]) * multiplier * 10) / 10;
+            const pm10 = Math.round((Math.random() * (levels.pm10[1] - levels.pm10[0]) + levels.pm10[0]) * multiplier * 10) / 10;
+            const no2 = Math.round((Math.random() * (levels.no2[1] - levels.no2[0]) + levels.no2[0]) * multiplier * 10) / 10;
+            const o3 = Math.round((Math.random() * 40 + 30) * 10) / 10;
+            const so2 = Math.round((Math.random() * 15 + 5) * 10) / 10;
+            const co = Math.round((Math.random() * 2 + 0.5) * 100) / 100;
+            
+            const aqi = Math.round(Math.max(pm25 * 2, pm10 * 1.5, no2 * 2, o3 * 1.5));
+            
+            function getAQICategory(aqi) {
+                if (aqi <= 50) return 'Good';
+                if (aqi <= 100) return 'Moderate';
+                if (aqi <= 150) return 'Unhealthy for Sensitive Groups';
+                if (aqi <= 200) return 'Unhealthy';
+                if (aqi <= 300) return 'Very Unhealthy';
+                return 'Hazardous';
+            }
+
+            const greenCoverage = Math.round((Math.random() * 40 + 20) * 10) / 10;
+            const ndvi = Math.round((greenCoverage / 100) * 1000) / 1000;
+            
+            const respiratoryRisk = Math.min(100, Math.max(0, (aqi - 50) * 2 + Math.random() * 10));
+            const cardiovascularRisk = Math.min(100, Math.max(0, (aqi - 30) * 1.5 + Math.random() * 10));
+            const overallHealthScore = Math.max(0, 100 - aqi + Math.random() * 10);
+
+            let recommendations = [];
+            if (aqi <= 50) {
+                recommendations = [
+                    "Air quality is excellent! Perfect time for all outdoor activities.",
+                    "Consider walking or cycling instead of driving to maintain good air quality.",
+                    "Open windows to enjoy the fresh air and natural ventilation.",
+                    "Great conditions for outdoor sports, jogging, and exercise routines."
+                ];
+            } else if (aqi <= 100) {
+                recommendations = [
+                    "Air quality is acceptable for most people and outdoor activities.",
+                    "Sensitive individuals should consider limiting prolonged outdoor exertion.",
+                    "Good time for moderate outdoor exercise and recreational activities.",
+                    "Consider wearing light masks if you have respiratory sensitivities."
+                ];
+            } else if (aqi <= 150) {
+                recommendations = [
+                    "Unhealthy for sensitive groups. Children, elderly, and people with respiratory issues should limit outdoor activities.",
+                    "Consider wearing masks when outdoors for extended periods of time.",
+                    "Reduce prolonged or heavy outdoor exercise and opt for indoor alternatives.",
+                    "Keep windows closed and use air purifiers to maintain indoor air quality."
+                ];
+            } else if (aqi <= 200) {
+                recommendations = [
+                    "Air quality is unhealthy for everyone. Limit all outdoor activities when possible.",
+                    "Wear N95 or equivalent masks when going outside for any duration.",
+                    "Use high-quality air purifiers indoors and keep windows tightly closed.",
+                    "Avoid all outdoor exercise and consider postponing non-essential outdoor activities."
+                ];
+            } else {
+                recommendations = [
+                    "Air quality is hazardous! Avoid all outdoor activities and stay indoors.",
+                    "Stay indoors with windows and doors closed, use air purifiers continuously.",
+                    "Use highest-quality air filtration systems and avoid any outdoor exposure.",
+                    "Seek immediate medical attention if experiencing any breathing difficulties or health issues."
+                ];
+            }
+
+            return {
+                city: cityName,
+                aqi: { value: aqi, category: getAQICategory(aqi) },
+                pollutants: {
+                    pm25: { value: pm25, unit: 'µg/m³' },
+                    pm10: { value: pm10, unit: 'µg/m³' },
+                    no2: { value: no2, unit: 'µg/m³' },
+                    o3: { value: o3, unit: 'µg/m³' },
+                    so2: { value: so2, unit: 'µg/m³' },
+                    co: { value: co, unit: 'mg/m³' }
+                },
+                vegetation: {
+                    ndvi: ndvi,
+                    greenCoveragePercent: greenCoverage
+                },
+                healthIndicators: {
+                    respiratoryRisk: Math.round(respiratoryRisk),
+                    cardiovascularRisk: Math.round(cardiovascularRisk),
+                    overallHealthScore: Math.round(overallHealthScore),
+                    recommendations: recommendations
+                },
+                measurementDate: new Date(Date.now() - Math.random() * 2 * 60 * 60 * 1000),
+                dataSource: 'Simulated Data (NASA/ESA Standards)'
+            };
+        }
+
+        // View Management Functions
+        function showView(viewName) {
+            console.log(`🔄 Switching to view: ${viewName}`);
+            
+            // Hide all views
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.remove('active');
+            });
+            
+            // Show target view
+            const targetView = document.getElementById(`${viewName}-view`);
+            if (targetView) {
+                targetView.classList.add('active');
+            }
+            
+            // Update navigation
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            const activeBtn = document.getElementById(`${viewName}-btn`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+            
+            currentView = viewName;
+            
+            // Initialize view-specific content
+            setTimeout(() => {
+                if (viewName === 'home' && !document.querySelector('#global-map .leaflet-container')) {
+                    initializeGlobalMap();
+                } else if (viewName === 'compare') {
+                    initializeCompareView();
+                }
+            }, 100);
+        }
+
+        // City Card Functions
+        async function createCityCard(cityName) {
+            const card = document.createElement('div');
+            card.className = 'city-card';
+            card.onclick = () => showCityDetails(cityName);
+            
+            // Initial loading state
+            card.innerHTML = `
+                <div class="flex items-center mb-4">
+                    <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                        ${cityName[0]}
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-1">${cityName}</h3>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <div class="animate-spin rounded-full h-3 w-3 border-b border-blue-600 mr-2"></div>
+                            Loading data...
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="city-status status-loading mr-2"></div>
+                        <span class="text-sm text-gray-600">Fetching AQI...</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400"></i>
+                </div>
+            `;
+            
+            try {
+                // Simulate API call delay
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
+                const data = generateMockData(cityName);
+                cityData.set(cityName, data);
+                updateCityCard(card, cityName, data);
+            } catch (error) {
+                console.error(`Error loading ${cityName}:`, error);
+                updateCityCardError(card, cityName);
+            }
+            
+            return card;
+        }
+
+        function updateCityCard(card, cityName, data) {
+            const aqi = data.aqi.value;
+            const category = data.aqi.category;
+            const statusClass = getStatusClass(aqi);
+            const aqiColorClass = getAQIColorClass(aqi);
+            
+            card.innerHTML = `
+                <div class="flex items-center mb-4">
+                    <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                        ${cityName[0]}
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-1">${cityName}</h3>
+                        <p class="text-sm text-gray-600">${data.dataSource}</p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="city-status ${statusClass} mr-2"></div>
+                            <span class="text-sm font-semibold text-gray-700">AQI: ${aqi}</span>
+                        </div>
+                        <span class="text-xs px-2 py-1 rounded-full ${aqiColorClass} font-medium border">${category.split(' ')[0]}</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-xs">
+                        <div class="text-center bg-red-50 p-2 rounded">
+                            <div class="font-semibold text-red-600">PM2.5</div>
+                            <div class="text-gray-700">${data.pollutants.pm25.value}</div>
+                        </div>
+                        <div class="text-center bg-orange-50 p-2 rounded">
+                            <div class="font-semibold text-orange-600">PM10</div>
+                            <div class="text-gray-700">${data.pollutants.pm10.value}</div>
+                        </div>
+                        <div class="text-center bg-green-50 p-2 rounded">
+                            <div class="font-semibold text-green-600">Green</div>
+                            <div class="text-gray-700">${data.vegetation.greenCoveragePercent}%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-100">
+                        <span>Updated: ${formatTime(data.measurementDate)}</span>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCityCardError(card, cityName) {
+            card.innerHTML = `
+                <div class="flex items-center mb-4">
+                    <div class="w-14 h-14 bg-gradient-to-br from-gray-400 to-gray-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                        ${cityName[0]}
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-1">${cityName}</h3>
+                        <p class="text-sm text-red-600 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
+                            Data unavailable
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="city-status bg-gray-400 mr-2"></div>
+                        <span class="text-sm text-gray-500">Unable to load</span>
+                    </div>
+                    <button class="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" onclick="event.stopPropagation(); retryCityData('${cityName}')">
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        // City Details Functions
+        function showCityDetails(cityName) {
+            console.log(`🏙️ Loading details for ${cityName}`);
+            currentCity = cityName;
+            showView('city');
+            
+            const data = cityData.get(cityName) || generateMockData(cityName);
+            cityData.set(cityName, data);
+            updateCityDetailsView(cityName, data);
+        }
+
+        function updateCityDetailsView(cityName, data) {
+            // Update header
+            document.getElementById('city-name').textContent = cityName;
+            const coords = cityCoordinates[cityName];
+            document.getElementById('city-info').innerHTML = `
+                <i class="fas fa-map-marker-alt mr-2"></i>
+                ${coords ? `${coords[0].toFixed(2)}°N, ${coords[1].toFixed(2)}°E` : 'Coordinates unavailable'} • 
+                <i class="fas fa-clock mr-1"></i>
+                Updated ${formatTime(data.measurementDate)}
+            `;
+            
+            // Update AQI
+            const aqiValue = document.getElementById('aqi-value');
+            const aqiCategory = document.getElementById('aqi-category');
+            const aqiUpdated = document.getElementById('aqi-updated');
+            
+            aqiValue.textContent = data.aqi.value;
+            aqiValue.className = `text-6xl font-bold mb-4 transition-all duration-500 ${getAQIColorClass(data.aqi.value)}`;
+            
+            aqiCategory.textContent = data.aqi.category;
+            aqiCategory.className = `text-lg font-semibold mb-6 px-4 py-2 rounded-full inline-block ${getAQIColorClass(data.aqi.value)} border`;
+            
+            aqiUpdated.textContent = `Last updated: ${formatTime(data.measurementDate)}`;
+            
+            // Update gauge
+            updateAQIGauge(data.aqi.value);
+            
+            // Update health risks
+            updateHealthRisks(data.healthIndicators);
+            
+            // Update green coverage
+            document.getElementById('green-coverage').textContent = `${data.vegetation.greenCoveragePercent}%`;
+            document.getElementById('ndvi-value').textContent = data.vegetation.ndvi;
+            document.getElementById('green-percentage').textContent = `${data.vegetation.greenCoveragePercent}%`;
+            
+            // Update trends
+            updateTrendData(data.aqi.value);
+            
+            // Update pollutants
+            updatePollutantList(data.pollutants);
+            
+            // Update recommendations
+            updateRecommendations(data.healthIndicators.recommendations);
+            
+            // Initialize city map
+            setTimeout(() => initializeCityMap(cityName, data), 100);
+            
+            // Show health alert if needed
+            if (data.aqi.value > 100) {
+                showHealthAlert(data);
+            } else {
+                hideAlert();
+            }
+        }
+
+        function updateAQIGauge(aqi) {
+            const needle = document.getElementById('aqi-needle');
+            if (needle) {
+                const rotation = Math.min(180, (aqi / 300) * 180);
+                needle.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+            }
+        }
+
+        function updateHealthRisks(health) {
+            const risks = [
+                { id: 'respiratory', value: health.respiratoryRisk },
+                { id: 'cardio', value: health.cardiovascularRisk },
+                { id: 'health', value: health.overallHealthScore }
+            ];
+            
+            risks.forEach((risk, index) => {
+                setTimeout(() => {
+                    const bar = document.getElementById(`${risk.id}-bar`);
+                    const valueEl = document.getElementById(`${risk.id}-value`);
+                    
+                    if (bar) bar.style.width = `${risk.value}%`;
+                    if (valueEl) {
+                        let currentValue = 0;
+                        const targetValue = risk.value;
+                        const increment = targetValue / 20;
+                        
+                        const animateValue = () => {
+                            if (currentValue < targetValue) {
+                                currentValue += increment;
+                                valueEl.textContent = `${Math.round(currentValue)}%`;
+                                requestAnimationFrame(animateValue);
+                            } else {
+                                valueEl.textContent = `${targetValue}%`;
+                            }
+                        };
+                        
+                        animateValue();
+                    }
+                }, index * 200);
+            });
+        }
+
+        function updateTrendData(currentAQI) {
+            // Generate simulated trend data
+            const trend7 = Math.round(currentAQI + (Math.random() - 0.5) * 30);
+            const trend3 = Math.round(currentAQI + (Math.random() - 0.5) * 15);
+            
+            document.getElementById('trend-7').textContent = `AQI ${Math.max(1, trend7)}`;
+            document.getElementById('trend-3').textContent = `AQI ${Math.max(1, trend3)}`;
+            document.getElementById('trend-today').textContent = `AQI ${currentAQI}`;
+        }
+
+        function updatePollutantList(pollutants) {
+            const container = document.getElementById('pollutant-list');
+            if (!container) return;
+            
+            const pollutantData = [
+                { name: 'PM2.5', key: 'pm25', color: 'text-red-600' },
+                { name: 'PM10', key: 'pm10', color: 'text-orange-600' },
+                { name: 'NO2', key: 'no2', color: 'text-purple-600' },
+                { name: 'O3', key: 'o3', color: 'text-green-600' },
+                { name: 'SO2', key: 'so2', color: 'text-yellow-600' },
+                { name: 'CO', key: 'co', color: 'text-gray-600' }
+            ];
+            
+            container.innerHTML = pollutantData.map(item => {
+                const data = pollutants[item.key];
+                return `
+                    <div class="pollutant-item">
+                        <div class="flex items-center">
+                            <i class="fas fa-circle ${item.color} mr-2 text-xs"></i>
+                            <span class="font-semibold text-gray-800">${item.name}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-bold text-gray-900">${data.value}</span>
+                            <span class="text-sm text-gray-600 ml-1">${data.unit}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateRecommendations(recommendations) {
+            const container = document.getElementById('recommendations');
+            if (!container) return;
+            
+            const icons = ['fas fa-lungs', 'fas fa-walking', 'fas fa-home', 'fas fa-mask'];
+            
+            container.innerHTML = recommendations.map((rec, index) => `
+                <div class="recommendation-item">
+                    <div class="recommendation-icon">
+                        <i class="${icons[index] || 'fas fa-info-circle'}"></i>
+                    </div>
+                    <div class="text-gray-700 leading-relaxed">${rec}</div>
+                </div>
+            `).join('');
+        }
+
+        function showHealthAlert(data) {
+            const banner = document.getElementById('alert-banner');
+            const message = document.getElementById('alert-message');
+            
+            if (banner && message) {
+                message.textContent = `Air quality is ${data.aqi.category.toLowerCase()}. Consider limiting outdoor activities and following health recommendations.`;
+                banner.className = `alert-banner ${data.aqi.value > 200 ? 'danger' : 'warning'}`;
+                banner.classList.remove('hidden');
+                
+                // Auto-hide after 15 seconds
+                setTimeout(hideAlert, 15000);
+            }
+        }
+
+        function hideAlert() {
+            const banner = document.getElementById('alert-banner');
+            if (banner) {
+                banner.classList.add('hidden');
+            }
+        }
+
+        // Map Functions
+        function initializeGlobalMap() {
+            const container = document.getElementById('global-map');
+            if (!container || maps['global-map']) return;
+            
+            console.log('🗺️ Initializing global map...');
+            
+            try {
+                // Clear any existing content
+                container.innerHTML = '';
+                
+                maps['global-map'] = L.map('global-map').setView([20, 0], 2);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 18
+                }).addTo(maps['global-map']);
+                
+                // Add city markers with data
+                Object.entries(cityCoordinates).forEach(([cityName, coords]) => {
+                    const data = cityData.get(cityName) || generateMockData(cityName);
+                    if (!cityData.has(cityName)) {
+                        cityData.set(cityName, data);
+                    }
+                    
+                    const aqi = data.aqi.value;
+                    const color = getMarkerColor(aqi);
+                    
+                    const marker = L.circleMarker(coords, {
+                        radius: 8 + (aqi / 50) * 2,
+                        fillColor: color,
+                        color: '#ffffff',
+                        weight: 3,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(maps['global-map']);
+                    
+                    marker.bindPopup(`
+                        <div class="text-center p-2" style="min-width: 200px;">
+                            <h4 class="font-bold text-lg mb-2">${cityName}</h4>
+                            <div class="mb-2">
+                                <span class="text-2xl font-bold" style="color: ${color};">${aqi}</span>
+                                <div class="text-sm text-gray-600">${data.aqi.category}</div>
+                            </div>
+                            <div class="text-xs text-gray-500 mb-3">
+                                PM2.5: ${data.pollutants.pm25.value} µg/m³ | Green: ${data.vegetation.greenCoveragePercent}%
+                            </div>
+                            <button onclick="showCityDetails('${cityName}')" class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-search mr-1"></i>View Details
+                            </button>
+                        </div>
+                    `);
+                    
+                    // Add hover effects
+                    marker.on('mouseover', function() {
+                        this.setStyle({ 
+                            radius: this.options.radius * 1.3,
+                            weight: 4
+                        });
+                    });
+                    
+                    marker.on('mouseout', function() {
+                        this.setStyle({ 
+                            radius: this.options.radius / 1.3,
+                            weight: 3
+                        });
+                    });
+                });
+                
+                showToast('Global map loaded successfully!', 'success', 3000);
+                updateGlobalStats();
+            } catch (error) {
+                console.error('Error initializing global map:', error);
+                container.innerHTML = `
+                    <div class="flex items-center justify-center h-full bg-gray-100 rounded-lg">
+                        <div class="text-center text-gray-600">
+                            <i class="fas fa-map text-4xl mb-4 text-gray-400"></i>
+                            <p class="font-medium">Map temporarily unavailable</p>
+                            <button onclick="initializeGlobalMap()" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-redo mr-1"></i>Retry Loading
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function initializeCityMap(cityName, data) {
+            const container = document.getElementById('city-map');
+            const coords = cityCoordinates[cityName];
+            
+            if (!container || !coords) return;
+            
+            try {
+                // Clear any existing content
+                container.innerHTML = '';
+                
+                if (maps['city-map']) {
+                    maps['city-map'].remove();
+                }
+                
+                maps['city-map'] = L.map('city-map').setView(coords, 11);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 18
+                }).addTo(maps['city-map']);
+                
+                const aqi = data.aqi.value;
+                const color = getMarkerColor(aqi);
+                
+                // Main city marker
+                L.circleMarker(coords, {
+                    radius: 25,
+                    fillColor: color,
+                    color: '#ffffff',
+                    weight: 4,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(maps['city-map']).bindPopup(`
+                    <div class="text-center p-3">
+                        <h4 class="font-bold text-lg mb-3">${cityName}</h4>
+                        <div class="space-y-2">
+                            <div class="text-2xl font-bold mb-2" style="color: ${color};">AQI ${aqi}</div>
+                            <div class="text-sm text-gray-600 mb-2">${data.aqi.category}</div>
+                            <div class="text-sm text-gray-600 space-y-1">
+                                <div>PM2.5: <strong>${data.pollutants.pm25.value} µg/m³</strong></div>
+                                <div>PM10: <strong>${data.pollutants.pm10.value} µg/m³</strong></div>
+                                <div>NO2: <strong>${data.pollutants.no2.value} µg/m³</strong></div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-3 pt-2 border-t">
+                                Green Coverage: <strong>${data.vegetation.greenCoveragePercent}%</strong>
+                            </div>
+                        </div>
+                    </div>
+                `).openPopup();
+                
+                // Add simulated monitoring stations around the city
+                const stationCount = 3 + Math.floor(Math.random() * 4);
+                for (let i = 0; i < stationCount; i++) {
+                    const offsetLat = (Math.random() - 0.5) * 0.15;
+                    const offsetLng = (Math.random() - 0.5) * 0.15;
+                    const stationCoords = [coords[0] + offsetLat, coords[1] + offsetLng];
+                    const stationAQI = Math.max(1, aqi + (Math.random() - 0.5) * 40);
+                    const stationColor = getMarkerColor(stationAQI);
+                    
+                    L.circleMarker(stationCoords, {
+                        radius: 8,
+                        fillColor: stationColor,
+                        color: '#ffffff',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.6
+                    }).addTo(maps['city-map']).bindPopup(`
+                        <div class="text-center p-2">
+                            <div class="text-sm font-semibold mb-1">Station ${i + 1}</div>
+                            <div class="text-xs text-gray-600">AQI: <strong>${Math.round(stationAQI)}</strong></div>
+                            <div class="text-xs text-gray-500 mt-1">Monitoring Point</div>
+                        </div>
+                    `);
+                }
+                
+            } catch (error) {
+                console.error('Error initializing city map:', error);
+                container.innerHTML = `
+                    <div class="flex items-center justify-center h-full bg-gray-100 rounded-lg">
+                        <div class="text-center text-gray-600">
+                            <i class="fas fa-map-marker-alt text-4xl mb-4 text-gray-400"></i>
+                            <p class="font-medium">City map temporarily unavailable</p>
+                            <p class="text-sm text-gray-500 mt-2">Please try refreshing the page</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Global Stats Update
+        function updateGlobalStats() {
+            let goodCount = 0, moderateCount = 0, unhealthyCount = 0;
+            
+            cityData.forEach((data) => {
+                const aqi = data.aqi.value;
+                if (aqi <= 50) goodCount++;
+                else if (aqi <= 100) moderateCount++;
+                else unhealthyCount++;
+            });
+            
+            document.getElementById('good-cities').textContent = goodCount;
+            document.getElementById('moderate-cities').textContent = moderateCount;
+            document.getElementById('unhealthy-cities').textContent = unhealthyCount;
+        }
+
+        // Comparison Functions
+        function initializeCompareView() {
+            const container = document.getElementById('compare-selection');
+            if (!container) return;
+            
+            container.innerHTML = cities.map(city => `
+                <label class="city-checkbox flex items-center p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" onclick="handleCitySelection('${city}', this)">
+                    <input type="checkbox" value="${city}" class="mr-3 h-4 w-4 text-blue-600">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                            ${city[0]}
+                        </div>
+                        <span class="font-medium text-gray-800">${city}</span>
+                    </div>
+                </label>
+            `).join('');
+        }
+
+        function handleCitySelection(cityName, element) {
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            const button = document.getElementById('compare-btn-action');
+            
+            if (checkbox.checked) {
+                selectedComparisonCities.add(cityName);
+                element.classList.add('selected');
+            } else {
+                selectedComparisonCities.delete(cityName);
+                element.classList.remove('selected');
+            }
+            
+            const count = selectedComparisonCities.size;
+            button.disabled = count < 2 || count > 4;
+            
+            if (count < 2) {
+                button.innerHTML = '<i class="fas fa-chart-bar mr-2"></i>Select 2-4 cities to compare';
+            } else if (count > 4) {
+                button.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Maximum 4 cities allowed';
+            } else {
+                button.innerHTML = `<i class="fas fa-chart-bar mr-2"></i>Compare ${count} Cities`;
+            }
+        }
+
+        function performComparison() {
+            if (selectedComparisonCities.size < 2) {
+                showToast('Please select at least 2 cities to compare', 'warning');
+                return;
+            }
+            
+            const results = document.getElementById('comparison-results');
+            if (!results) return;
+            
+            // Show loading state
+            results.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                    <div class="text-center py-12">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p class="text-gray-600 font-medium">Comparing ${selectedComparisonCities.size} cities...</p>
+                    </div>
+                </div>
+            `;
+            results.classList.remove('hidden');
+            
+            // Simulate processing delay
+            setTimeout(() => {
+                // Generate comparison data
+                const compareData = Array.from(selectedComparisonCities).map(cityName => {
+                    const data = cityData.get(cityName) || generateMockData(cityName);
+                    if (!cityData.has(cityName)) {
+                        cityData.set(cityName, data);
+                    }
+                    return data;
+                });
+                
+                // Create comparison results
+                updateComparisonResults(compareData);
+                showToast(`Comparison completed for ${compareData.length} cities!`, 'success');
+            }, 1500);
+        }
+
+        function updateComparisonResults(compareData) {
+            const results = document.getElementById('comparison-results');
+            if (!results) return;
+            
+            // Sort cities by AQI for better visualization
+            const sortedData = [...compareData].sort((a, b) => a.aqi.value - b.aqi.value);
+            
+            results.innerHTML = `
+                <!-- Comparison Summary -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+                    <h3 class="text-2xl font-bold mb-6 text-gray-800 text-center">
+                        <i class="fas fa-chart-bar mr-2 text-blue-600"></i>
+                        City Comparison Results
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto">
+                            <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
+                                <tr>
+                                    <th class="px-6 py-4 text-left font-bold text-gray-800">City</th>
+                                    <th class="px-6 py-4 text-center font-bold text-gray-800">AQI</th>
+                                    <th class="px-6 py-4 text-center font-bold text-gray-800">PM2.5</th>
+                                    <th class="px-6 py-4 text-center font-bold text-gray-800">PM10</th>
+                                    <th class="px-6 py-4 text-center font-bold text-gray-800">NO2</th>
+                                    <th class="px-6 py-4 text-center font-bold text-gray-800">Health Score</th>
+                                    <th class="px-6 py-4 text-center font-bold text-gray-800">Green Cover</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sortedData.map((city, index) => {
+                                    const aqiColor = getMarkerColor(city.aqi.value);
+                                    return `
+                                        <tr class="hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}">
+                                            <td class="px-6 py-4">
+                                                <div class="flex items-center">
+                                                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                                                        ${city.city[0]}
+                                                    </div>
+                                                    <div>
+                                                        <div class="font-bold text-gray-800">${city.city}</div>
+                                                        <div class="text-xs text-gray-500">${city.dataSource}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 text-center">
+                                                <span class="inline-block px-3 py-1 rounded-full text-sm font-bold text-white" style="background-color: ${aqiColor};">
+                                                    ${city.aqi.value}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 text-center font-semibold">${city.pollutants.pm25.value} µg/m³</td>
+                                            <td class="px-6 py-4 text-center font-semibold">${city.pollutants.pm10.value} µg/m³</td>
+                                            <td class="px-6 py-4 text-center font-semibold">${city.pollutants.no2.value} µg/m³</td>
+                                            <td class="px-6 py-4 text-center font-semibold">${city.healthIndicators.overallHealthScore}%</td>
+                                            <td class="px-6 py-4 text-center font-semibold">${city.vegetation.greenCoveragePercent}%</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Key Insights -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+                    <h3 class="text-2xl font-bold mb-6 text-gray-800">
+                        <i class="fas fa-lightbulb mr-2 text-yellow-600"></i>
+                        Key Insights
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="text-center bg-green-50 p-6 rounded-xl border border-green-200">
+                            <i class="fas fa-trophy text-3xl text-green-600 mb-3"></i>
+                            <h4 class="font-bold text-green-800">Best Air Quality</h4>
+                            <p class="text-xl font-bold text-green-700">${sortedData[0].city}</p>
+                            <p class="text-sm text-green-600">AQI: ${sortedData[0].aqi.value}</p>
+                        </div>
+                        <div class="text-center bg-blue-50 p-6 rounded-xl border border-blue-200">
+                            <i class="fas fa-tree text-3xl text-blue-600 mb-3"></i>
+                            <h4 class="font-bold text-blue-800">Most Green Space</h4>
+                            <p class="text-xl font-bold text-blue-700">${[...sortedData].sort((a, b) => b.vegetation.greenCoveragePercent - a.vegetation.greenCoveragePercent)[0].city}</p>
+                            <p class="text-sm text-blue-600">${[...sortedData].sort((a, b) => b.vegetation.greenCoveragePercent - a.vegetation.greenCoveragePercent)[0].vegetation.greenCoveragePercent}% Green</p>
+                        </div>
+                        <div class="text-center bg-purple-50 p-6 rounded-xl border border-purple-200">
+                            <i class="fas fa-heart text-3xl text-purple-600 mb-3"></i>
+                            <h4 class="font-bold text-purple-800">Best Health Score</h4>
+                            <p class="text-xl font-bold text-purple-700">${[...sortedData].sort((a, b) => b.healthIndicators.overallHealthScore - a.healthIndicators.overallHealthScore)[0].city}</p>
+                            <p class="text-sm text-purple-600">${[...sortedData].sort((a, b) => b.healthIndicators.overallHealthScore - a.healthIndicators.overallHealthScore)[0].healthIndicators.overallHealthScore}% Score</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual Comparison -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                    <h3 class="text-2xl font-bold mb-6 text-gray-800">
+                        <i class="fas fa-chart-area mr-2 text-indigo-600"></i>
+                        Visual Comparison Chart
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="text-lg font-semibold mb-4 text-gray-700">Air Quality Index</h4>
+                            <div class="space-y-3">
+                                ${sortedData.map(city => {
+                                    const barWidth = (city.aqi.value / Math.max(...sortedData.map(c => c.aqi.value))) * 100;
+                                    const barColor = getMarkerColor(city.aqi.value);
+                                    return `
+                                        <div class="flex items-center">
+                                            <div class="w-20 text-sm font-medium text-gray-600">${city.city}</div>
+                                            <div class="flex-1 ml-3">
+                                                <div class="h-6 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div class="h-full rounded-full flex items-center justify-end pr-2 text-white text-sm font-bold" 
+                                                         style="width: ${barWidth}%; background-color: ${barColor};">
+                                                        ${city.aqi.value}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold mb-4 text-gray-700">Green Space Coverage</h4>
+                            <div class="space-y-3">
+                                ${[...sortedData].sort((a, b) => b.vegetation.greenCoveragePercent - a.vegetation.greenCoveragePercent).map(city => {
+                                    const barWidth = (city.vegetation.greenCoveragePercent / Math.max(...sortedData.map(c => c.vegetation.greenCoveragePercent))) * 100;
+                                    return `
+                                        <div class="flex items-center">
+                                            <div class="w-20 text-sm font-medium text-gray-600">${city.city}</div>
+                                            <div class="flex-1 ml-3">
+                                                <div class="h-6 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-end pr-2 text-white text-sm font-bold" 
+                                                         style="width: ${barWidth}%;">
+                                                        ${city.vegetation.greenCoveragePercent}%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Action Functions
+        function refreshCityData() {
+            if (!currentCity) return;
+            
+            console.log(`🔄 Refreshing data for ${currentCity}`);
+            showToast('Refreshing city data...', 'info', 2000);
+            
+            // Generate fresh data
+            const freshData = generateMockData(currentCity);
+            cityData.set(currentCity, freshData);
+            
+            // Update the view
+            updateCityDetailsView(currentCity, freshData);
+            
+            showToast('Data refreshed successfully!', 'success');
+        }
+
+        function retryCityData(cityName) {
+            console.log(`🔄 Retrying data for ${cityName}`);
+            
+            // Find city card
+            const cityCards = document.querySelectorAll('.city-card');
+            const targetCard = Array.from(cityCards).find(card => 
+                card.querySelector('h3')?.textContent === cityName
+            );
+            
+            if (targetCard) {
+                // Show loading state
+                                // Show loading state
+                const h3 = targetCard.querySelector('h3');
+                if (h3) {
+                    h3.nextElementSibling.innerHTML = `
+                        <div class="animate-spin rounded-full h-3 w-3 border-b border-blue-600 mr-2 inline-block"></div>
+                        Retrying...
+                    `;
+                }
+                
+                // Generate fresh data after delay
+                setTimeout(async () => {
+                    try {
+                        const airQualityData = generateMockData(cityName);
+                        cityData.set(cityName, airQualityData);
+                        updateCityCard(targetCard, cityName, airQualityData);
+                        
+                        showToast(`${cityName} data loaded successfully`, 'success');
+                    } catch (error) {
+                        console.error(`Error retrying data for ${cityName}:`, error);
+                        updateCityCardError(targetCard, cityName);
+                        showToast(`Failed to load ${cityName} data`, 'error');
+                    }
+                }, 1000);
+            }
+        }
+
+        // Load city grid
+        async function loadCityGrid() {
+            const cityGrid = document.getElementById('city-grid');
+            if (!cityGrid) return;
+
+            // Show loading state
+            cityGrid.innerHTML = `
+                <div class="col-span-full flex items-center justify-center py-12">
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p class="text-gray-600 font-medium">Loading cities...</p>
+                    </div>
+                </div>
+            `;
+
+            try {
+                // Clear existing content
+                setTimeout(() => {
+                    cityGrid.innerHTML = '';
+                }, 500);
+
+                // Create city cards with staggered loading
+                for (let i = 0; i < cities.length; i++) {
+                    const cityName = cities[i];
+                    
+                    setTimeout(async () => {
+                        const cityCard = await createCityCard(cityName);
+                        cityCard.style.opacity = '0';
+                        cityCard.style.transform = 'translateY(20px)';
+                        cityGrid.appendChild(cityCard);
+                        
+                        // Animate in
+                        setTimeout(() => {
+                            cityCard.style.transition = 'all 0.5s ease';
+                            cityCard.style.opacity = '1';
+                            cityCard.style.transform = 'translateY(0)';
+                        }, 100);
+                    }, i * 150);
+                }
+
+                // Update global stats after all cities load
+                setTimeout(() => {
+                    updateGlobalStats();
+                }, cities.length * 150 + 1000);
+
+            } catch (error) {
+                console.error('Error loading city grid:', error);
+                cityGrid.innerHTML = `
+                    <div class="col-span-full text-center text-red-600 py-12">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                        <p class="font-medium">Failed to load cities</p>
+                        <button onclick="loadCityGrid()" class="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+                            <i class="fas fa-redo mr-2"></i>Retry Loading
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize the application
+        async function initializeApp() {
+            console.log('🚀 Urban Health Monitor - Initializing Application...');
+            
+            try {
+                // Show loading overlay
+                const loadingOverlay = document.getElementById('loading-overlay');
+                if (loadingOverlay) {
+                    loadingOverlay.classList.remove('hidden');
+                }
+
+                // Load city data first
+                await loadCityGrid();
+                
+                // Initialize global map after a short delay
+                setTimeout(() => {
+                    initializeGlobalMap();
+                }, 1000);
+                
+                // Initialize comparison view
+                initializeCompareView();
+                
+                // Hide loading overlay
+                setTimeout(() => {
+                    if (loadingOverlay) {
+                        loadingOverlay.classList.add('hidden');
+                    }
+                }, 2000);
+
+                console.log('✅ Application initialized successfully');
+                setTimeout(() => {
+                    showToast('Urban Health Monitor loaded successfully!', 'success', 3000);
+                }, 2500);
+                
+            } catch (error) {
+                console.error('❌ Failed to initialize application:', error);
+                
+                // Hide loading overlay
+                const loadingOverlay = document.getElementById('loading-overlay');
+                if (loadingOverlay) {
+                    loadingOverlay.classList.add('hidden');
+                }
+                
+                showToast('Failed to initialize application', 'error', 5000);
+                
+                // Show error message
+                const mainContent = document.getElementById('main-content');
+                if (mainContent) {
+                    mainContent.innerHTML = `
+                        <div class="min-h-screen flex items-center justify-center bg-gray-50">
+                            <div class="text-center p-8">
+                                <i class="fas fa-exclamation-triangle text-6xl text-red-500 mb-6"></i>
+                                <h2 class="text-3xl font-bold text-gray-800 mb-4">Application Error</h2>
+                                <p class="text-gray-600 mb-6 max-w-md">
+                                    Failed to initialize the Urban Health Monitor. Please refresh the page to try again.
+                                </p>
+                                <button onclick="location.reload()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-refresh mr-2"></i>
+                                    Refresh Page
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Auto-refresh functionality
+        function startAutoRefresh() {
+            // Refresh data every 5 minutes
+            setInterval(() => {
+                if (navigator.onLine && document.visibilityState === 'visible') {
+                    console.log('🔄 Auto-refreshing data...');
+                    
+                    if (currentView === 'city' && currentCity) {
+                        refreshCityData();
+                    } else if (currentView === 'home') {
+                        // Refresh a random city's data
+                        const randomCity = cities[Math.floor(Math.random() * cities.length)];
+                        const newData = generateMockData(randomCity);
+                        cityData.set(randomCity, newData);
+                        updateGlobalStats();
+                    }
+                }
+            }, 5 * 60 * 1000); // 5 minutes
+            
+            console.log('⏰ Auto-refresh started (5 minutes interval)');
+        }
+
+        // Handle visibility change to pause/resume updates
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('📱 App moved to background - pausing updates');
+            } else {
+                console.log('📱 App returned to foreground - resuming updates');
+            }
+        });
+
+        // Handle online/offline status
+        window.addEventListener('online', () => {
+            showToast('Connection restored', 'success');
+            console.log('🌐 Connection restored');
+        });
+
+        window.addEventListener('offline', () => {
+            showToast('Connection lost - using cached data', 'warning');
+            console.log('🌐 Connection lost');
+        });
+
+        // Handle window resize for responsive behavior
+        window.addEventListener('resize', () => {
+            // Invalidate maps on resize
+            Object.values(maps).forEach(map => {
+                if (map && map.invalidateSize) {
+                    setTimeout(() => map.invalidateSize(), 100);
+                }
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Only handle shortcuts when not typing in input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            switch (e.key) {
+                case '1':
+                    showView('home');
+                    break;
+                case '2':
+                    showView('compare');
+                    break;
+                case '3':
+                    showView('about');
+                    break;
+                case 'r':
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        if (currentView === 'city') {
+                            refreshCityData();
+                        } else if (currentView === 'home') {
+                            loadCityGrid();
+                        }
+                    }
+                    break;
+                case 'Escape':
+                    if (currentView === 'city') {
+                        showView('home');
+                    }
+                    break;
+            }
+        });
+
+        // Error handling
+        window.addEventListener('error', (e) => {
+            console.error('Global error:', e.error);
+            showToast('An unexpected error occurred', 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('Unhandled promise rejection:', e.reason);
+            showToast('An unexpected error occurred', 'error');
+            e.preventDefault();
+        });
+
+        // Performance monitoring
+        function logPerformanceMetrics() {
+            if (window.performance && window.performance.timing) {
+                const timing = window.performance.timing;
+                const loadTime = timing.loadEventEnd - timing.navigationStart;
+                const domReady = timing.domContentLoadedEventEnd - timing.navigationStart;
+                
+                console.log(`⚡ Performance Metrics:
+                    - Page Load Time: ${loadTime}ms
+                    - DOM Ready Time: ${domReady}ms
+                    - Cities Loaded: ${cityData.size}
+                    - Maps Initialized: ${Object.keys(maps).length}`);
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🌟 DOM loaded, initializing Urban Health Monitor...');
+            
+            // Add loading animation to body
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 0.5s ease';
+            
+            // Initialize the application
+            await initializeApp();
+            
+            // Start auto-refresh
+            startAutoRefresh();
+            
+            // Log performance metrics
+            setTimeout(logPerformanceMetrics, 3000);
+            
+            // Fade in the body
+            document.body.style.opacity = '1';
+            
+            // Add smooth scrolling
+            document.documentElement.style.scrollBehavior = 'smooth';
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            console.log('🧹 Cleaning up application resources...');
+            
+            // Clear intervals and cleanup
+            Object.values(maps).forEach(map => {
+                if (map && map.remove) {
+                    map.remove();
+                }
+            });
+        });
+
+        // Export some functions to global scope for HTML onclick handlers
+        window.showView = showView;
+        window.showCityDetails = showCityDetails;
+        window.refreshCityData = refreshCityData;
+        window.retryCityData = retryCityData;
+        window.hideAlert = hideAlert;
+        window.handleCitySelection = handleCitySelection;
+        window.performComparison = performComparison;
+        window.initializeGlobalMap = initializeGlobalMap;
+        window.loadCityGrid = loadCityGrid;
+
+        console.log('✅ Urban Health Monitor - Application script loaded successfully');
+        console.log(`
+        🏙️ Urban Health Monitor v1.0
+        📊 NASA Space Apps Challenge 2025
+        🚀 Smart India Hackathon
+        
+        Features:
+        • Real-time Air Quality Monitoring
+        • Interactive Global & City Maps  
+        • Health Risk Assessment
+        • City Comparison Tools
+        • Responsive Mobile Design
+        • Keyboard Shortcuts (1,2,3 for views, Ctrl+R to refresh)
+        
+        Ready to monitor urban health! 🌍
+        `);
+
+    </script>
+</body>
+</html>
+
